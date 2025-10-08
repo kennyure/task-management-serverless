@@ -1,0 +1,87 @@
+service: task-management-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    TASKS_TABLE: ${self:service}-tasks-${self:provider.stage}
+    STAGE: ${self:provider.stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TASKS_TABLE}
+
+functions:
+  createTask:
+    handler: src/handlers/createTask.handler
+    events:
+      - http:
+          path: tasks
+          method: post
+          cors: true
+
+  getTasks:
+    handler: src/handlers/getTasks.handler
+    events:
+      - http:
+          path: tasks
+          method: get
+          cors: true
+
+  getTask:
+    handler: src/handlers/getTask.handler
+    events:
+      - http:
+          path: tasks/{id}
+          method: get
+          cors: true
+
+  updateTask:
+    handler: src/handlers/updateTask.handler
+    events:
+      - http:
+          path: tasks/{id}
+          method: put
+          cors: true
+
+  deleteTask:
+    handler: src/handlers/deleteTask.handler
+    events:
+      - http:
+          path: tasks/{id}
+          method: delete
+          cors: true
+
+resources:
+  Resources:
+    TasksTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.TASKS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+
+plugins:
+  - serverless-offline
+
